@@ -33,21 +33,22 @@ FLASH_TARGET = $(DEBUGGER) -f $(BOARD)
 FLASH_CMD = "program $(ELF) verify reset exit"
 FLASH = $(FLASH_TARGET) -c $(FLASH_CMD)
 
-# TODO: Use linker and startup.s file from STM32CubeF4
 # Linker
-LD = $(SRC_DIR)/linker_stm32f407xx.ld
+LD = $(STM32F4_DISCOVERY_DIR)/STM32CubeIDE/STM32F407VGTX_FLASH.ld
 
 # Startup files
-SRC = $(SRC_DIR)/startup_stm32f407xx.c
+SRC = $(STM32F4_DISCOVERY_DIR)/STM32CubeIDE/Example/Startup/startup_stm32f407vgtx.s
 
 # Project source files
 SRC += $(SRC_DIR)/main.c
+SRC += $(SRC_DIR)/syscalls.c
+SRC += $(SRC_DIR)/sysmem.c
 SRC += $(CMSIS_DIR)/Device/ST/STM32F4xx/Source/Templates/system_stm32f4xx.c
 
 # Compilation flags
 CFLAGS  = -Wall -O0 -g
 CFLAGS += -mcpu=$(CPU) -mthumb -mfloat-abi=soft
-CFLAGS +=  --specs=nano.specs -nostdlib
+CFLAGS +=  --specs=nano.specs
 
 # Defines
 CFLAGS += -D$(MCU)
