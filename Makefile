@@ -8,22 +8,19 @@ SIZE    = arm-none-eabi-size
 # Target information
 CPU = cortex-m4
 BOARD = board/stm32f4discovery.cfg
+MCU = STM32F407xx
 
 # Directories
-ROOT_DIR = $(abspath $(lastword $(MAKEFILE_LIST)))
+ROOT_DIR = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 INC_DIR = $(ROOT_DIR)/inc
 SRC_DIR = $(ROOT_DIR)/src
 BUILD_DIR = $(ROOT_DIR)/build
-LINKER_DIR = $(ROOT_DIR)/STM32CubeF4/Projects/STM32F4-Discovery/Templates_LL/STM32CubeIDE/STM32F407VGTX_FLASH.ld
-STM32F4XX_DIR = $(ROOT_DIR)/STM32CubeF4/Drivers/CMSIS/Device/ST/STM32F4xx
-STM32F4XX_INC_DIR = $(STM32F4XX_DIR)/Include
-STM32F4XX_SRC_DIR = $(STM32F4XX_DIR)/Source/Templates
-STM32F4XX_HAL_DIR = $(ROOT_DIR)STM32CubeF4/Drivers/STM32F4xx_HAL_Driver
-STM32F4XX_HAL_INC_DIR = $(STM32F4XX_HAL_DIR)/Inc
-STM32F4XX_HAL_SRC_DIR = $(STM32F4XX_HAL_DIR)/Src
-FREERTOS_DIR = $(ROOT_DIR)/STM32CubeF4/Middlewares/Third_Party/FreeRTOS
-FREERTOS_SRC_DIR = $(FREERTOS_DIR)/Source
-FREERTOS_INC_DIR = $(FREERTOS_SRC_DIR)/include
+STM32CUBEF4_DIR = $(ROOT_DIR)/STM32CubeF4
+LINKER_DIR = $(STM32CUBEF4_DIR)/Projects/STM32F4-Discovery/Templates_LL/STM32CubeIDE
+STM32F4_HAL_DIR = $(STM32CUBEF4_DIR)/Drivers/STM32F4xx_HAL_Driver
+FREERTOS_DIR = $(STM32CUBEF4_DIR)/Middlewares/Third_Party/FreeRTOS/Source
+CMSIS_DIR = $(STM32CUBEF4_DIR)/Drivers/CMSIS
+STM32F4_DISCOVERY_DIR = $(STM32CUBEF4_DIR)/Projects/STM32F4-Discovery/Templates_LL
 
 # Project information
 PROJECT = freertos-shell
@@ -36,25 +33,34 @@ FLASH_TARGET = $(DEBUGGER) -f $(BOARD)
 FLASH_CMD = "program $(ELF) verify reset exit"
 FLASH = $(FLASH_TARGET) -c $(FLASH_CMD)
 
+# TODO: Use linker and startup.s file from STM32CubeF4
 # Linker
-LD = $(LINKER_DIR)/STM32F407VGTX_FLASH.ld
+LD = $(SRC_DIR)/linker_stm32f407xx.ld
 
 # Startup files
-SRC = $(STM32F4XX_SRC_DIR)/gcc/startup_stm32f407xx.s
+SRC = $(SRC_DIR)/startup_stm32f407xx.c
 
 # Project source files
 SRC += $(SRC_DIR)/main.c
-SRC += $(CMSIS_DIR)/cmsis_os.c
-
+SRC += $(CMSIS_DIR)/Device/ST/STM32F4xx/Source/Templates/system_stm32f4xx.c
 
 # Compilation flags
 CFLAGS  = -Wall -O0 -g
 CFLAGS += -mcpu=$(CPU) -mthumb -mfloat-abi=soft
 CFLAGS +=  --specs=nano.specs -nostdlib
 
+# Defines
+CFLAGS += -D$(MCU)
+
 # Include folders
 CFLAGS += -I $(INC_DIR)
-CFLAGS += -I $(FREERTOS_INC_DIR)
+CFLAGS += -I $(STM32F4_HAL_DIR)/Inc
+CFLAGS += -I $(STM32F4_HAL_DIR)/Inc/Legacy
+CFLAGS += -I $(FREERTOS_DIR)/include
+CFLAGS += -I $(FREERTOS_DIR)/portable/GCC/ARM_CM4F
+CFLAGS += -I $(CMSIS_DIR)/Include
+CFLAGS += -I $(CMSIS_DIR)/Device/ST/STM32F4xx/Include
+CFLAGS += -I $(STM32F4_DISCOVERY_DIR)/Inc
 CFLAGS += -T $(LD)
 
 ## Rules
