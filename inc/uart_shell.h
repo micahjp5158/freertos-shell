@@ -18,6 +18,7 @@ extern "C" {
 /************************************
  * INCLUDES
  ************************************/
+#include <sys/stat.h>
 
 /************************************
  * MACROS AND DEFINES
@@ -36,6 +37,15 @@ extern "C" {
  ************************************/
 
 void uart_shell_init(void);
+
+/* Modified system calls to support using printf over UART */
+/* Based on https://shawnhymel.com/1873/how-to-use-printf-on-stm32/ */
+int _isatty(int fd);
+int _write(int fd, char* ptr, int len);
+int _close(int fd);
+int _lseek(int fd, int ptr, int dir);
+int _read(int fd, char* ptr, int len);
+int _fstat(int fd, struct stat* st);
 
 #ifdef __cplusplus
 }
