@@ -8,7 +8,6 @@ SIZE    = arm-none-eabi-size
 # Target information
 CPU = cortex-m4
 BOARD = board/stm32f4discovery.cfg
-MCU = STM32F407xx
 
 # Directories
 ROOT_DIR = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -43,6 +42,14 @@ SRC = $(STM32F4_DISCOVERY_DIR)/STM32CubeIDE/Example/Startup/startup_stm32f407vgt
 SRC += $(SRC_DIR)/main.c
 SRC += $(SRC_DIR)/syscalls.c
 SRC += $(SRC_DIR)/sysmem.c
+SRC += $(SRC_DIR)/uart_shell.c
+SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal.c
+SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_cortex.c
+SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_dma.c
+SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_gpio.c
+SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_uart.c
+SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_rcc.c
+SRC += $(STM32F4_DISCOVERY_DIR)/Src/stm32f4xx_it.c
 SRC += $(CMSIS_DIR)/Device/ST/STM32F4xx/Source/Templates/system_stm32f4xx.c
 
 # Compilation flags
@@ -50,8 +57,9 @@ CFLAGS  = -Wall -O0 -g
 CFLAGS += -mcpu=$(CPU) -mthumb -mfloat-abi=soft
 CFLAGS +=  --specs=nano.specs
 
-# Defines
-CFLAGS += -D$(MCU)
+# Preprocessor Defines
+CFLAGS += -DSTM32F407xx			# STM32F4 Discovery board has MCU STM32F407VG
+CFLAGS += -DHSE_VALUE=8000000	# STM32F4 Discovery board has 8 MHz OSC for HSE
 
 # Include folders
 CFLAGS += -I $(INC_DIR)
@@ -63,6 +71,9 @@ CFLAGS += -I $(CMSIS_DIR)/Include
 CFLAGS += -I $(CMSIS_DIR)/Device/ST/STM32F4xx/Include
 CFLAGS += -I $(STM32F4_DISCOVERY_DIR)/Inc
 CFLAGS += -T $(LD)
+
+# Defines
+CFLAGS += -DHSE_VALUE=8000000
 
 ## Rules
 default: $(BIN)
