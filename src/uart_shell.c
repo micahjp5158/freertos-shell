@@ -115,6 +115,10 @@ void uart_shell_init(void)
     // TODO error handling
     return;
   }
+
+  /* Disable I/O buffering for STDOUT stream, so that
+   * chars are sent out as soon as they are printed. */
+  setvbuf(stdout, NULL, _IONBF, 0);
 }
 
 /* Modified system calls to support using printf over UART */
