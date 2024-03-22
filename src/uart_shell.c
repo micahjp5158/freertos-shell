@@ -43,6 +43,14 @@
 #define UART_SHELL_TX_GPIO_PULL   GPIO_PULLUP;
 #define UART_SHELL_TX_GPIO_AF     GPIO_AF7_USART2
 
+// UART RX pin configuration
+#define UART_SHELL_RX_GPIO_PORT   GPIOA
+#define UART_SHELL_RX_GPIO_PIN    GPIO_PIN_3
+#define UART_SHELL_RX_GPIO_MODE   GPIO_MODE_AF_PP;
+#define UART_SHELL_RX_GPIO_SPEED  GPIO_SPEED_FAST;
+#define UART_SHELL_RX_GPIO_PULL   GPIO_PULLUP;
+#define UART_SHELL_RX_GPIO_AF     GPIO_AF7_USART2
+
 // UART configuration
 #define UART_SHELL_CFG_USART_ID       USART2
 #define UART_SHELL_CFG_BAUDRATE       9600
@@ -97,6 +105,14 @@ void uart_shell_init(void)
   gpio_init.Pull = UART_SHELL_TX_GPIO_PULL;
   gpio_init.Alternate = UART_SHELL_TX_GPIO_AF;
   HAL_GPIO_Init(UART_SHELL_TX_GPIO_PORT, &gpio_init);
+
+  // Configure RX pin
+  gpio_init.Pin = UART_SHELL_RX_GPIO_PIN;
+  gpio_init.Mode = UART_SHELL_RX_GPIO_MODE;
+  gpio_init.Speed = UART_SHELL_RX_GPIO_SPEED;
+  gpio_init.Pull = UART_SHELL_RX_GPIO_PULL;
+  gpio_init.Alternate = UART_SHELL_RX_GPIO_AF;
+  HAL_GPIO_Init(UART_SHELL_RX_GPIO_PORT, &gpio_init);
 
   // Initialize UART2 clock
   __HAL_RCC_USART2_CLK_ENABLE();
