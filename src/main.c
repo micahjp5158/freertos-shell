@@ -23,6 +23,9 @@
 
 #include "stm32f4xx_hal.h"
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 #include <stdio.h>
 
 /** @addtogroup STM32F4xx_LL_Examples
@@ -58,6 +61,9 @@ int main(void)
 
   /* Initialize UART shell module */
   uart_shell_init();
+
+  /* Start the FreeRTOS scheduler */
+  vTaskStartScheduler();
 
   /* Infinite loop */
   while (1)
