@@ -13,6 +13,9 @@
  ************************************/
 #include "uart_shell.h"
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 #include "stm32f4xx.h"
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_it.h"
@@ -78,19 +81,27 @@
  * GLOBAL VARIABLES
  ************************************/
 UART_HandleTypeDef UART_Shell_Handle;
+TaskHandle_t UART_Shell_Task_Handler;
 
 /************************************
  * STATIC FUNCTION PROTOTYPES
  ************************************/
+static void uart_shell_task_handler(void *parameters);
 
 /************************************
  * STATIC FUNCTIONS
  ************************************/
+static void uart_shell_task_handler(void *parameters)
+{
+  printf("Shell task started\n");
+  while(1){
+    // TODO
+  }
+}
 
 /************************************
  * GLOBAL FUNCTIONS
  ************************************/
-
 void uart_shell_init(void)
 {
   GPIO_InitTypeDef gpio_init = {0};
@@ -135,6 +146,17 @@ void uart_shell_init(void)
   /* Disable I/O buffering for STDOUT stream, so that
    * chars are sent out as soon as they are printed. */
   setvbuf(stdout, NULL, _IONBF, 0);
+
+  // Create the shell task
+  BaseType_t status;
+  status = xTaskCreate(uart_shell_task_handler,
+                      "UART Shell task",
+                      200,
+                      NULL,
+                      2,
+                      &UART_Shell_Task_Handler);
+
+  configASSERT(status == pdPASS);
 }
 
 /* Modified system calls to support using printf over UART */

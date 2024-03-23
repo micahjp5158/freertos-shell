@@ -7,6 +7,7 @@ SIZE    = arm-none-eabi-size
 
 # Target information
 CPU = cortex-m4
+FPU = fpv4-sp-d16
 BOARD = board/stm32f4discovery.cfg
 
 # Directories
@@ -52,6 +53,15 @@ C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_dma.c
 C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_gpio.c
 C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_uart.c
 C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_rcc.c
+C_SRC += $(FREERTOS_DIR)/croutine.c
+C_SRC += $(FREERTOS_DIR)/event_groups.c
+C_SRC += $(FREERTOS_DIR)/list.c
+C_SRC += $(FREERTOS_DIR)/portable/GCC/ARM_CM4F/port.c
+C_SRC += $(FREERTOS_DIR)/portable/MemMang/heap_4.c
+C_SRC += $(FREERTOS_DIR)/queue.c
+C_SRC += $(FREERTOS_DIR)/stream_buffer.c
+C_SRC += $(FREERTOS_DIR)/tasks.c
+C_SRC += $(FREERTOS_DIR)/timers.c
 
 # Object files - generated from SRC lists
 ASM_OBJ = $(addprefix $(OBJ_DIR)/,$(notdir $(ASM_SRC:.s=.o)))
@@ -61,7 +71,7 @@ vpath %.c $(sort $(dir $(C_SRC)))
 
 # Compilation flags
 CC_FLAGS  = -Wall -O0 -g
-CC_FLAGS += -mcpu=$(CPU) -mthumb -mfloat-abi=soft
+CC_FLAGS += -mcpu=$(CPU) -mthumb -mfloat-abi=hard -mfpu=$(FPU)
 CC_FLAGS +=  --specs=nano.specs
 
 # Preprocessor Defines
