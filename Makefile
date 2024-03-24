@@ -14,15 +14,13 @@ BOARD = board/stm32f4discovery.cfg
 ROOT_DIR = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 INC_DIR = $(ROOT_DIR)/inc
 SRC_DIR = $(ROOT_DIR)/src
-BUILD_DIR = $(ROOT_DIR)/build
-OBJ_DIR = $(BUILD_DIR)/objects
 SUBMODULES_DIR = $(ROOT_DIR)/submodules
 STM32CUBEF4_DIR = $(SUBMODULES_DIR)/STM32CubeF4
-LINKER_DIR = $(STM32CUBEF4_DIR)/Projects/STM32F4-Discovery/Templates_LL/STM32CubeIDE
-STM32F4_HAL_DIR = $(STM32CUBEF4_DIR)/Drivers/STM32F4xx_HAL_Driver
-FREERTOS_DIR = $(STM32CUBEF4_DIR)/Middlewares/Third_Party/FreeRTOS/Source
 CMSIS_DIR = $(STM32CUBEF4_DIR)/Drivers/CMSIS
-STM32F4_DISCOVERY_DIR = $(STM32CUBEF4_DIR)/Projects/STM32F4-Discovery/Templates_LL
+FREERTOS_DIR = $(STM32CUBEF4_DIR)/Middlewares/Third_Party/FreeRTOS/Source
+STM32F4_HAL_DIR = $(STM32CUBEF4_DIR)/Drivers/STM32F4xx_HAL_Driver
+BUILD_DIR = $(ROOT_DIR)/build
+OBJ_DIR = $(BUILD_DIR)/objects
 
 # Project information
 PROJECT = freertos-shell
@@ -36,10 +34,10 @@ FLASH_CMD = "program $(ELF) verify reset exit"
 FLASH = $(FLASH_TARGET) -c $(FLASH_CMD)
 
 # Linker
-LD = $(STM32F4_DISCOVERY_DIR)/STM32CubeIDE/STM32F407VGTX_FLASH.ld
+LD = $(SRC_DIR)/STM32F407VGTX_FLASH.ld
 
 # Assembly source files
-ASM_SRC = $(STM32F4_DISCOVERY_DIR)/STM32CubeIDE/Example/Startup/startup_stm32f407vgtx.s
+ASM_SRC = $(SRC_DIR)/startup_stm32f407vgtx.s
 
 # Project source files
 C_SRC  = $(SRC_DIR)/main.c
@@ -48,12 +46,7 @@ C_SRC += $(SRC_DIR)/sysmem.c
 C_SRC += $(SRC_DIR)/uart_shell.c
 C_SRC += $(SRC_DIR)/stm32f4xx_it.c
 C_SRC += $(SRC_DIR)/system_stm32f4xx.c
-C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal.c
-C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_cortex.c
-C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_dma.c
-C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_gpio.c
-C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_uart.c
-C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_rcc.c
+C_SRC += $(SUBMODULES_DIR)/ringbuf/src/ringbuf.c
 C_SRC += $(FREERTOS_DIR)/croutine.c
 C_SRC += $(FREERTOS_DIR)/event_groups.c
 C_SRC += $(FREERTOS_DIR)/list.c
@@ -63,6 +56,12 @@ C_SRC += $(FREERTOS_DIR)/queue.c
 C_SRC += $(FREERTOS_DIR)/stream_buffer.c
 C_SRC += $(FREERTOS_DIR)/tasks.c
 C_SRC += $(FREERTOS_DIR)/timers.c
+C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal.c
+C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_cortex.c
+C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_dma.c
+C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_gpio.c
+C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_uart.c
+C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_rcc.c
 
 # Object files - generated from SRC lists
 ASM_OBJ = $(addprefix $(OBJ_DIR)/,$(notdir $(ASM_SRC:.s=.o)))
@@ -83,13 +82,13 @@ C_DEFS += -DHSE_VALUE=8000000
 
 # Include folders
 INC_FLAGS  = -I $(INC_DIR)
+INC_FLAGS += -I $(SUBMODULES_DIR)/ringbuf/inc
 INC_FLAGS += -I $(STM32F4_HAL_DIR)/Inc
 INC_FLAGS += -I $(STM32F4_HAL_DIR)/Inc/Legacy
 INC_FLAGS += -I $(FREERTOS_DIR)/include
 INC_FLAGS += -I $(FREERTOS_DIR)/portable/GCC/ARM_CM4F
 INC_FLAGS += -I $(CMSIS_DIR)/Include
 INC_FLAGS += -I $(CMSIS_DIR)/Device/ST/STM32F4xx/Include
-INC_FLAGS += -I $(STM32F4_DISCOVERY_DIR)/Inc
 INC_FLAGS += -T $(LD)
 
 ## Rules
