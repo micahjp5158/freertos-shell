@@ -59,6 +59,10 @@
 // UART RX buffer
 #define UART_SHELL_RX_BUF_SIZE  64
 
+// UART interrupt configuration
+#define UART_SHELL_IRQ_N        USART2_IRQn
+#define UART_SHELL_IRQ_Handler  USART2_IRQHandler
+
 // UART configuration
 #define UART_SHELL_CFG_USART_ID       USART2
 #define UART_SHELL_CFG_BAUDRATE       115200
@@ -81,6 +85,7 @@
 /************************************
  * STATIC VARIABLES
  ************************************/
+static uint8_t rx_char;
 
 /************************************
  * GLOBAL VARIABLES
@@ -92,22 +97,37 @@ uint8_t rx_buf[UART_SHELL_RX_BUF_SIZE];
 // UART peripheral handler
 UART_HandleTypeDef UART_Shell_Handle;
 
-// UART shell FreeRTOS task handler
-TaskHandle_t UART_Shell_Task_Handler;
+// FreeRTOS task handles
+TaskHandle_t UART_RX_Task_Handle;
+TaskHandle_t UART_Shell_Task_Handle;
 
 /************************************
  * STATIC FUNCTION PROTOTYPES
  ************************************/
+static void uart_rx_task_handler(void *parameters);
 static void uart_shell_task_handler(void *parameters);
 
 /************************************
  * STATIC FUNCTIONS
  ************************************/
+static void uart_rx_task_handler(void *parameters)
+{
+  while(1)
+  {
+    if (HAL_UART_Receive_IT(&UART_Shell_Handle, &rx_char, 1) != HAL_OK)
+    {
+      // TODO error handling
+    }
+  }
+}
+
 static void uart_shell_task_handler(void *parameters)
 {
   printf("Shell task started\n");
   while(1){
-    // TODO
+    // Shell input cursor to prompt for input
+    printf("> ");
+    while(1);
   }
 }
 
@@ -116,6 +136,7 @@ static void uart_shell_task_handler(void *parameters)
  ************************************/
 void uart_shell_init(void)
 {
+  BaseType_t task_create_status;
   GPIO_InitTypeDef gpio_init = {0};
 
   // Initialize the RX ring buffer
@@ -158,22 +179,51 @@ void uart_shell_init(void)
     return;
   }
 
+  // Enable UART RX interrupts
+  HAL_NVIC_SetPriority(UART_SHELL_IRQ_N , 0, 1);
+  HAL_NVIC_EnableIRQ(UART_SHELL_IRQ_N);
+
   /* Disable I/O buffering for STDOUT stream, so that
    * chars are sent out as soon as they are printed. */
   setvbuf(stdout, NULL, _IONBF, 0);
 
   // Create the shell task
-  BaseType_t status;
-  status = xTaskCreate(uart_shell_task_handler,
+  task_create_status = xTaskCreate(uart_shell_task_handler,
                       "UART Shell task",
                       200,
                       NULL,
                       2,
-                      &UART_Shell_Task_Handler);
+                      &UART_Shell_Task_Handle);
 
-  configASSERT(status == pdPASS);
+  configASSERT(task_create_status == pdPASS);
+
+  // Create the UART RX task
+  task_create_status = xTaskCreate(uart_rx_task_handler,
+                      "UART RX task",
+                      200,
+                      NULL,
+                      2,
+                      &UART_RX_Task_Handle);
+
+  configASSERT(task_create_status == pdPASS);
 }
 
+/************************************
+ * INTERRUPT HANDLERS
+ ************************************/
+void UART_SHELL_IRQ_Handler(void)
+{
+  HAL_UART_IRQHandler(&UART_Shell_Handle);
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)
+{
+  // TODO
+}
+
+/************************************
+ * SYSTEM CALLS
+ ************************************/
 /* Modified system calls to support using printf over UART */
 /* Based on https://shawnhymel.com/1873/how-to-use-printf-on-stm32/ */
 int _isatty(int fd) {
@@ -211,20 +261,6 @@ int _lseek(int fd, int ptr, int dir) {
   (void) ptr;
   (void) dir;
 
-  errno = EBADF;
-  return -1;
-}
-
-int _read(int fd, char* ptr, int len) {
-  HAL_StatusTypeDef hstatus;
-
-  if (fd == STDIN_FILENO) {
-    hstatus = HAL_UART_Receive(&UART_Shell_Handle, (uint8_t *) ptr, 1, HAL_MAX_DELAY);
-    if (hstatus == HAL_OK)
-      return 1;
-    else
-      return EIO;
-  }
   errno = EBADF;
   return -1;
 }

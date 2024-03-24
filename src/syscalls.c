@@ -64,6 +64,19 @@ void _exit (int status)
   while (1) {}    /* Make sure we hang here */
 }
 
+__attribute__((weak)) int _read(int file, char *ptr, int len)
+{
+  (void)file;
+  int DataIdx;
+
+  for (DataIdx = 0; DataIdx < len; DataIdx++)
+  {
+    *ptr++ = __io_getchar();
+  }
+
+  return len;
+}
+
 int _open(char *path, int flags, ...)
 {
   (void)path;
