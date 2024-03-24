@@ -33,6 +33,7 @@
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 /************************************
  * EXTERN VARIABLES
@@ -58,7 +59,7 @@
 #define UART_SHELL_RX_GPIO_AF     GPIO_AF7_USART2
 
 // UART RX buffer
-#define UART_SHELL_RX_BUF_SIZE  64
+#define UART_SHELL_CMD_BUF_SIZE  64
 
 // UART interrupt configuration
 #define UART_SHELL_IRQ_N        USART2_IRQn
@@ -73,6 +74,10 @@
 #define UART_SHELL_CFG_FLOW_CTRL      UART_HWCONTROL_NONE
 #define UART_SHELL_CFG_MODE           UART_MODE_TX_RX
 #define UART_SHELL_CFG_OVERSAMPLING   UART_OVERSAMPLING_16
+
+// FreeRTOS signals
+#define UART_SHELL_SIGNAL_RX_COMPLETE         0x01
+#define UART_SHELL_SIGNAL_RX_BUFFER_OVERFLOW  0x02
 
 // STDIO file descriptors
 #define STDIN_FILENO  0
@@ -92,13 +97,17 @@
  ************************************/
 // UART RX ring buffer
 RingBuf_Handle_t Rx_RingBuf_Handle;
-uint8_t rx_buf[UART_SHELL_RX_BUF_SIZE];
+uint8_t rx_buf[UART_SHELL_CMD_BUF_SIZE];
+
+// UART Shell command buffer
+char uart_shell_cmd_buf[UART_SHELL_CMD_BUF_SIZE];
 
 // UART peripheral handler
 UART_HandleTypeDef UART_Shell_Handle;
 
 // FreeRTOS task handles
-TaskHandle_t UART_Shell_Task_Handle;
+TaskHandle_t  UART_Shell_Task_Handle;
+uint32_t      UART_Shell_Task_Notifications;
 
 /************************************
  * STATIC FUNCTION PROTOTYPES
@@ -111,10 +120,45 @@ static void uart_shell_task_handler(void *parameters);
 static void uart_shell_task_handler(void *parameters)
 {
   printf("Shell task started\n");
+
   while(1){
     // Shell input cursor to prompt for input
     printf("> ");
-    while(1);
+
+    // Wait for shell event
+    xTaskNotifyWait(UINT32_MAX, 0, &UART_Shell_Task_Notifications, portMAX_DELAY);
+
+    // Disable RX interrupts while handling command / errors, since
+    // accessing RX ring buffer includes critical sections
+    LL_USART_DisableIT_RXNE(UART_SHELL_CFG_USART_ID);
+
+    // Process received command
+    if ((UART_Shell_Task_Notifications & UART_SHELL_SIGNAL_RX_COMPLETE) == UART_SHELL_SIGNAL_RX_COMPLETE)
+    {
+      // Copy the command from the ringbuffer
+      char data;
+      uint8_t idx = 0;
+      while (ringbuf_get(&Rx_RingBuf_Handle, &data) == RINGBUF_STATUS_OK)
+      {
+        uart_shell_cmd_buf[idx] = data;
+        idx++;
+      }
+
+      // TODO Process commands
+
+      // Clear the command buffer for next use
+      memset(uart_shell_cmd_buf, 0, UART_SHELL_CMD_BUF_SIZE * sizeof(char));
+    }
+
+    // Process RX buffer overflow
+    if ((UART_Shell_Task_Notifications & UART_SHELL_SIGNAL_RX_BUFFER_OVERFLOW) == UART_SHELL_SIGNAL_RX_BUFFER_OVERFLOW)
+    {
+      printf("\nERROR: RX buffer overflow. Limit command input to %d characters.\n", UART_SHELL_CMD_BUF_SIZE);
+      ringbuf_clear(&Rx_RingBuf_Handle);
+    }
+
+    // Reenable RX interrupts
+    LL_USART_EnableIT_RXNE(UART_SHELL_CFG_USART_ID);
   }
 }
 
@@ -127,7 +171,7 @@ void uart_shell_init(void)
   GPIO_InitTypeDef gpio_init = {0};
 
   // Initialize the RX ring buffer
-  ringbuf_init(&Rx_RingBuf_Handle, rx_buf, sizeof(uint8_t), UART_SHELL_RX_BUF_SIZE);
+  ringbuf_init(&Rx_RingBuf_Handle, rx_buf, sizeof(uint8_t), UART_SHELL_CMD_BUF_SIZE);
 
   // Initialize GPIOA clock
   __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -168,6 +212,7 @@ void uart_shell_init(void)
 
   // Enable UART RX interrupts
   LL_USART_EnableIT_RXNE(UART_SHELL_CFG_USART_ID);
+  HAL_NVIC_SetPriority(UART_SHELL_IRQ_N, 6, 1);
   HAL_NVIC_EnableIRQ(UART_SHELL_IRQ_N);
 
   /* Disable I/O buffering for STDOUT stream, so that
@@ -193,8 +238,30 @@ void UART_SHELL_IRQ_Handler(void)
   // Check for RXNE
   if (LL_USART_IsActiveFlag_RXNE(UART_SHELL_CFG_USART_ID))
   {
-    // TODO
+    static uint8_t rx = 0x00;
+    static RingBuf_Status_t status = RINGBUF_STATUS_OK;
+
+    // Clear the interrupt flag
     LL_USART_ClearFlag_RXNE(UART_SHELL_CFG_USART_ID);
+
+    // Read the received character
+    rx = LL_USART_ReceiveData8(UART_SHELL_CFG_USART_ID);
+
+    // Carriage return character = complete command received
+    if (rx == '\r'){
+      xTaskNotifyFromISR(UART_Shell_Task_Handle, UART_SHELL_SIGNAL_RX_COMPLETE, eSetBits, NULL);
+      return;
+    }
+
+    // Put received byte into the ringbuffer
+    status = ringbuf_put(&Rx_RingBuf_Handle, &rx);
+
+    // Notify UART shell task of buffer overflows
+    if (status == RINGBUF_STATUS_FULL)
+    {
+      xTaskNotifyFromISR(UART_Shell_Task_Handle, UART_SHELL_SIGNAL_RX_BUFFER_OVERFLOW, eSetBits, NULL);
+      return;
+    }
   }
 }
 
