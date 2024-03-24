@@ -1,5 +1,5 @@
 [submodule "STM32CubeF4"]
-	path = STM32CubeF4
+	path = submodules/STM32CubeF4
 	url = git@github.com:STMicroelectronics/STM32CubeF4.git
 [submodule "submodules/ringbuf"]
 	path = submodules/ringbuf
