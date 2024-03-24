@@ -62,6 +62,7 @@ C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_dma.c
 C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_gpio.c
 C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_uart.c
 C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_hal_rcc.c
+C_SRC += $(STM32F4_HAL_DIR)/Src/stm32f4xx_ll_usart.c
 
 # Object files - generated from SRC lists
 ASM_OBJ = $(addprefix $(OBJ_DIR)/,$(notdir $(ASM_SRC:.s=.o)))

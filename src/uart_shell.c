@@ -21,6 +21,7 @@
 #include "stm32f4xx.h"
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_it.h"
+#include "stm32f4xx_ll_usart.h"
 
 #include <_ansi.h>
 #include <_syslist.h>
@@ -85,7 +86,6 @@
 /************************************
  * STATIC VARIABLES
  ************************************/
-static uint8_t rx_char;
 
 /************************************
  * GLOBAL VARIABLES
@@ -98,29 +98,16 @@ uint8_t rx_buf[UART_SHELL_RX_BUF_SIZE];
 UART_HandleTypeDef UART_Shell_Handle;
 
 // FreeRTOS task handles
-TaskHandle_t UART_RX_Task_Handle;
 TaskHandle_t UART_Shell_Task_Handle;
 
 /************************************
  * STATIC FUNCTION PROTOTYPES
  ************************************/
-static void uart_rx_task_handler(void *parameters);
 static void uart_shell_task_handler(void *parameters);
 
 /************************************
  * STATIC FUNCTIONS
  ************************************/
-static void uart_rx_task_handler(void *parameters)
-{
-  while(1)
-  {
-    if (HAL_UART_Receive_IT(&UART_Shell_Handle, &rx_char, 1) != HAL_OK)
-    {
-      // TODO error handling
-    }
-  }
-}
-
 static void uart_shell_task_handler(void *parameters)
 {
   printf("Shell task started\n");
@@ -180,7 +167,7 @@ void uart_shell_init(void)
   }
 
   // Enable UART RX interrupts
-  HAL_NVIC_SetPriority(UART_SHELL_IRQ_N , 0, 1);
+  LL_USART_EnableIT_RXNE(UART_SHELL_CFG_USART_ID);
   HAL_NVIC_EnableIRQ(UART_SHELL_IRQ_N);
 
   /* Disable I/O buffering for STDOUT stream, so that
@@ -196,16 +183,6 @@ void uart_shell_init(void)
                       &UART_Shell_Task_Handle);
 
   configASSERT(task_create_status == pdPASS);
-
-  // Create the UART RX task
-  task_create_status = xTaskCreate(uart_rx_task_handler,
-                      "UART RX task",
-                      200,
-                      NULL,
-                      2,
-                      &UART_RX_Task_Handle);
-
-  configASSERT(task_create_status == pdPASS);
 }
 
 /************************************
@@ -213,12 +190,12 @@ void uart_shell_init(void)
  ************************************/
 void UART_SHELL_IRQ_Handler(void)
 {
-  HAL_UART_IRQHandler(&UART_Shell_Handle);
-}
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)
-{
-  // TODO
+  // Check for RXNE
+  if (LL_USART_IsActiveFlag_RXNE(UART_SHELL_CFG_USART_ID))
+  {
+    // TODO
+    LL_USART_ClearFlag_RXNE(UART_SHELL_CFG_USART_ID);
+  }
 }
 
 /************************************
