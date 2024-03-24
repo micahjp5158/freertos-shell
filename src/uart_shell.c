@@ -13,6 +13,8 @@
  ************************************/
 #include "uart_shell.h"
 
+#include "ringbuf.h"
+
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -54,6 +56,9 @@
 #define UART_SHELL_RX_GPIO_PULL   GPIO_PULLUP;
 #define UART_SHELL_RX_GPIO_AF     GPIO_AF7_USART2
 
+// UART RX buffer
+#define UART_SHELL_RX_BUF_SIZE  64
+
 // UART configuration
 #define UART_SHELL_CFG_USART_ID       USART2
 #define UART_SHELL_CFG_BAUDRATE       115200
@@ -80,7 +85,14 @@
 /************************************
  * GLOBAL VARIABLES
  ************************************/
+// UART RX ring buffer
+RingBuf_Handle_t Rx_RingBuf_Handle;
+uint8_t rx_buf[UART_SHELL_RX_BUF_SIZE];
+
+// UART peripheral handler
 UART_HandleTypeDef UART_Shell_Handle;
+
+// UART shell FreeRTOS task handler
 TaskHandle_t UART_Shell_Task_Handler;
 
 /************************************
@@ -105,6 +117,9 @@ static void uart_shell_task_handler(void *parameters)
 void uart_shell_init(void)
 {
   GPIO_InitTypeDef gpio_init = {0};
+
+  // Initialize the RX ring buffer
+  ringbuf_init(&Rx_RingBuf_Handle, rx_buf, sizeof(uint8_t), UART_SHELL_RX_BUF_SIZE);
 
   // Initialize GPIOA clock
   __HAL_RCC_GPIOA_CLK_ENABLE();
