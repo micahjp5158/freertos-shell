@@ -41,11 +41,12 @@ ASM_SRC = $(SRC_DIR)/startup_stm32f407vgtx.s
 
 # Project source files
 C_SRC  = $(SRC_DIR)/main.c
+C_SRC += $(SRC_DIR)/led.c
+C_SRC += $(SRC_DIR)/stm32f4xx_it.c
 C_SRC += $(SRC_DIR)/syscalls.c
 C_SRC += $(SRC_DIR)/sysmem.c
-C_SRC += $(SRC_DIR)/uart_shell.c
-C_SRC += $(SRC_DIR)/stm32f4xx_it.c
 C_SRC += $(SRC_DIR)/system_stm32f4xx.c
+C_SRC += $(SRC_DIR)/uart_shell.c
 C_SRC += $(SUBMODULES_DIR)/ringbuf/src/ringbuf.c
 C_SRC += $(FREERTOS_DIR)/croutine.c
 C_SRC += $(FREERTOS_DIR)/event_groups.c

@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
+#include "led.h"
 #include "uart_shell.h"
 
 #include "stm32f4xx_hal.h"
@@ -58,6 +59,9 @@ int main(void)
 
   /* Configure the system clock */
   SystemClock_Config();
+
+  /* Initialize LED module */
+  led_init();
 
   /* Initialize UART shell module */
   uart_shell_init();
