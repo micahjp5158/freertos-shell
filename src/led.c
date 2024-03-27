@@ -27,15 +27,6 @@
 /************************************
  * PRIVATE MACROS AND DEFINES
  ************************************/
-// LED indexes
-enum LED_INDEX_T {
-  LED_GREEN_INDEX,
-  LED_ORANGE_INDEX,
-  LED_RED_INDEX,
-  LED_BLUE_INDEX,
-  NUM_LED_INDEX
-} LED_INDEX_T;
-
 // LED defines
 #define LED_CLK_ENABLE()  __HAL_RCC_GPIOD_CLK_ENABLE()
 
@@ -52,6 +43,14 @@ enum LED_INDEX_T {
 /************************************
  * PRIVATE TYPEDEFS
  ************************************/
+// LED indexes
+typedef enum LED_INDEX {
+  LED_GREEN_INDEX,
+  LED_ORANGE_INDEX,
+  LED_RED_INDEX,
+  LED_BLUE_INDEX,
+  NUM_LED_INDEX
+} LED_INDEX_T;
 
 /************************************
  * STATIC VARIABLES
