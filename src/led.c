@@ -32,10 +32,10 @@
 #define LED_CLK_ENABLE()  __HAL_RCC_GPIOD_CLK_ENABLE()
 
 #define LED_GPIO_PORT     GPIOD
-#define LED_GREEN         GPIO_PIN_12
-#define LED_ORANGE        GPIO_PIN_13
-#define LED_RED           GPIO_PIN_14
-#define LED_BLUE          GPIO_PIN_15
+#define LED_GREEN_PIN     GPIO_PIN_12
+#define LED_ORANGE_PIN    GPIO_PIN_13
+#define LED_RED_PIN       GPIO_PIN_14
+#define LED_BLUE_PIN      GPIO_PIN_15
 
 #define LED_GPIO_MODE     GPIO_MODE_OUTPUT_PP
 #define LED_GPIO_PULL     GPIO_PULLUP
@@ -50,15 +50,16 @@
 /************************************
  * PRIVATE TYPEDEFS
  ************************************/
-// LED indexes
-typedef enum LED_INDEX {
-  LED_GREEN_INDEX,
-  LED_ORANGE_INDEX,
-  LED_RED_INDEX,
-  LED_BLUE_INDEX,
-  NUM_LED_INDEX
-} LED_INDEX_T;
+// LEDs
+typedef enum LED {
+  LED_GREEN,
+  LED_ORANGE,
+  LED_RED,
+  LED_BLUE,
+  NUM_LED
+} LED_T;
 
+// LED operating modes
 typedef enum LED_MODE {
   LED_MODE_OFF,
   LED_MODE_ON,
@@ -67,8 +68,9 @@ typedef enum LED_MODE {
   NUM_LED_MODE
 } LED_MODE_T;
 
+// LED command
 typedef struct LED_CMD {
-  LED_INDEX_T idx;
+  LED_T led;
   LED_MODE_T mode;
 } LED_CMD_T;
 
@@ -76,10 +78,10 @@ typedef struct LED_CMD {
  * STATIC VARIABLES
  ************************************/
 // LED lookup table
-static const uint16_t LED_LOOKUP[NUM_LED_INDEX] = {LED_GREEN, LED_ORANGE, LED_RED, LED_BLUE};
+static const uint16_t LED_LOOKUP[NUM_LED] = {LED_GREEN_PIN, LED_ORANGE_PIN, LED_RED_PIN, LED_BLUE_PIN};
 
 // Timers used for LED toggle functions
-static TimerHandle_t LED_Timers[NUM_LED_INDEX];
+static TimerHandle_t LED_Timers[NUM_LED];
 
 // Queue for LED commands
 static QueueHandle_t LED_Command_Queue;
@@ -111,20 +113,20 @@ static void led_cmd_task_handler(void *parameters)
     switch(cmd.mode)
     {
       case LED_MODE_OFF:
-        HAL_GPIO_WritePin(LED_GPIO_PORT, LED_LOOKUP[cmd.idx], GPIO_PIN_RESET);
-        xTimerChangePeriod(LED_Timers[cmd.idx], portMAX_DELAY, portMAX_DELAY);
+        HAL_GPIO_WritePin(LED_GPIO_PORT, LED_LOOKUP[cmd.led], GPIO_PIN_RESET);
+        xTimerChangePeriod(LED_Timers[cmd.led], portMAX_DELAY, portMAX_DELAY);
         break;
       case LED_MODE_ON:
-        HAL_GPIO_WritePin(LED_GPIO_PORT, LED_LOOKUP[cmd.idx], GPIO_PIN_SET);
-        xTimerChangePeriod(LED_Timers[cmd.idx], portMAX_DELAY, portMAX_DELAY);
+        HAL_GPIO_WritePin(LED_GPIO_PORT, LED_LOOKUP[cmd.led], GPIO_PIN_SET);
+        xTimerChangePeriod(LED_Timers[cmd.led], portMAX_DELAY, portMAX_DELAY);
         break;
       case LED_MODE_BLINK_FAST:
-        HAL_GPIO_WritePin(LED_GPIO_PORT, LED_LOOKUP[cmd.idx], GPIO_PIN_SET);
-        xTimerChangePeriod(LED_Timers[cmd.idx], LED_BLINK_FAST_MS, portMAX_DELAY);
+        HAL_GPIO_WritePin(LED_GPIO_PORT, LED_LOOKUP[cmd.led], GPIO_PIN_SET);
+        xTimerChangePeriod(LED_Timers[cmd.led], LED_BLINK_FAST_MS, portMAX_DELAY);
         break;
       case LED_MODE_BLINK_SLOW:
-        HAL_GPIO_WritePin(LED_GPIO_PORT, LED_LOOKUP[cmd.idx], GPIO_PIN_SET);
-        xTimerChangePeriod(LED_Timers[cmd.idx], LED_BLINK_SLOW_MS, portMAX_DELAY);
+        HAL_GPIO_WritePin(LED_GPIO_PORT, LED_LOOKUP[cmd.led], GPIO_PIN_SET);
+        xTimerChangePeriod(LED_Timers[cmd.led], LED_BLINK_SLOW_MS, portMAX_DELAY);
         break;
       default:
         break;
@@ -147,7 +149,7 @@ static void led_timer_callback(TimerHandle_t xTimer)
 {
   // Select LED based on timer ID
   uint32_t id = (uint32_t) pvTimerGetTimerID(xTimer);
-  if (id >= NUM_LED_INDEX)
+  if (id >= NUM_LED)
   {
     // TODO error handling
     return;
@@ -168,19 +170,19 @@ void led_init(void)
   LED_CLK_ENABLE();
 
   // Initialize each LED pin
-  for (int i = 0; i < NUM_LED_INDEX; i++)
+  for (int i = 0; i < NUM_LED; i++)
   {
     led_gpio_init(LED_LOOKUP[i]);
   }
 
   // Set up LED software timers
-  LED_Timers[LED_GREEN_INDEX] = xTimerCreate("Green LED timer", portMAX_DELAY, pdTRUE, (void *)LED_GREEN_INDEX, led_timer_callback);
-  LED_Timers[LED_ORANGE_INDEX] = xTimerCreate("Orange LED timer", portMAX_DELAY, pdTRUE, (void *)LED_ORANGE_INDEX, led_timer_callback);
-  LED_Timers[LED_RED_INDEX] = xTimerCreate("Red LED timer", portMAX_DELAY, pdTRUE, (void *)LED_RED_INDEX, led_timer_callback);
-  LED_Timers[LED_BLUE_INDEX] = xTimerCreate("Blue LED timer", portMAX_DELAY, pdTRUE, (void *)LED_BLUE_INDEX, led_timer_callback);
+  LED_Timers[LED_GREEN] = xTimerCreate("Green LED timer", portMAX_DELAY, pdTRUE, (void *)LED_GREEN, led_timer_callback);
+  LED_Timers[LED_ORANGE] = xTimerCreate("Orange LED timer", portMAX_DELAY, pdTRUE, (void *)LED_ORANGE, led_timer_callback);
+  LED_Timers[LED_RED] = xTimerCreate("Red LED timer", portMAX_DELAY, pdTRUE, (void *)LED_RED, led_timer_callback);
+  LED_Timers[LED_BLUE] = xTimerCreate("Blue LED timer", portMAX_DELAY, pdTRUE, (void *)LED_BLUE, led_timer_callback);
 
   // Start the LED software timers
-  for (int i = 0; i < NUM_LED_INDEX; i++)
+  for (int i = 0; i < NUM_LED; i++)
   {
     xTimerStart(LED_Timers[i], portMAX_DELAY);
   }
