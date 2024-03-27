@@ -14,6 +14,7 @@
 
 #include "FreeRTOS.h"
 #include "timers.h"
+#include "queue.h"
 
 #include "stm32f4xx.h"
 #include "stm32f4xx_hal.h"
@@ -40,6 +41,12 @@
 #define LED_GPIO_PULL     GPIO_PULLUP
 #define LED_GPIO_SPEED    GPIO_SPEED_FREQ_LOW
 
+#define LED_BLINK_FAST_MS 250
+#define LED_BLINK_SLOW_MS 1000
+
+// LED Command queue size
+#define LED_CMD_QUEUE_SIZE  8
+
 /************************************
  * PRIVATE TYPEDEFS
  ************************************/
@@ -52,6 +59,19 @@ typedef enum LED_INDEX {
   NUM_LED_INDEX
 } LED_INDEX_T;
 
+typedef enum LED_MODE {
+  LED_MODE_OFF,
+  LED_MODE_ON,
+  LED_MODE_BLINK_SLOW,
+  LED_MODE_BLINK_FAST,
+  NUM_LED_MODE
+} LED_MODE_T;
+
+typedef struct LED_CMD {
+  LED_INDEX_T idx;
+  LED_MODE_T mode;
+} LED_CMD_T;
+
 /************************************
  * STATIC VARIABLES
  ************************************/
@@ -59,7 +79,13 @@ typedef enum LED_INDEX {
 static const uint16_t LED_LOOKUP[NUM_LED_INDEX] = {LED_GREEN, LED_ORANGE, LED_RED, LED_BLUE};
 
 // Timers used for LED toggle functions
-TimerHandle_t LED_Timers[NUM_LED_INDEX];
+static TimerHandle_t LED_Timers[NUM_LED_INDEX];
+
+// Queue for LED commands
+static QueueHandle_t LED_Command_Queue;
+
+// Task to process LED commands
+static TaskHandle_t LED_Command_Task_Handle;
 
 /************************************
  * GLOBAL VARIABLES
@@ -68,12 +94,44 @@ TimerHandle_t LED_Timers[NUM_LED_INDEX];
 /************************************
  * STATIC FUNCTION PROTOTYPES
  ************************************/
+static void led_cmd_task_handler(void *parameters);
 static void led_gpio_init(uint16_t pin);
 static void led_timer_callback(TimerHandle_t xTimer);
 
 /************************************
  * STATIC FUNCTIONS
  ************************************/
+static void led_cmd_task_handler(void *parameters)
+{
+  LED_CMD_T cmd;
+
+  while(1)
+  {
+    xQueueReceive(LED_Command_Queue, (void *)&cmd, portMAX_DELAY);
+    switch(cmd.mode)
+    {
+      case LED_MODE_OFF:
+        HAL_GPIO_WritePin(LED_GPIO_PORT, LED_LOOKUP[cmd.idx], GPIO_PIN_RESET);
+        xTimerChangePeriod(LED_Timers[cmd.idx], portMAX_DELAY, portMAX_DELAY);
+        break;
+      case LED_MODE_ON:
+        HAL_GPIO_WritePin(LED_GPIO_PORT, LED_LOOKUP[cmd.idx], GPIO_PIN_SET);
+        xTimerChangePeriod(LED_Timers[cmd.idx], portMAX_DELAY, portMAX_DELAY);
+        break;
+      case LED_MODE_BLINK_FAST:
+        HAL_GPIO_WritePin(LED_GPIO_PORT, LED_LOOKUP[cmd.idx], GPIO_PIN_SET);
+        xTimerChangePeriod(LED_Timers[cmd.idx], LED_BLINK_FAST_MS, portMAX_DELAY);
+        break;
+      case LED_MODE_BLINK_SLOW:
+        HAL_GPIO_WritePin(LED_GPIO_PORT, LED_LOOKUP[cmd.idx], GPIO_PIN_SET);
+        xTimerChangePeriod(LED_Timers[cmd.idx], LED_BLINK_SLOW_MS, portMAX_DELAY);
+        break;
+      default:
+        break;
+    }
+  }
+}
+
 static void led_gpio_init(uint16_t pin)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
@@ -104,6 +162,8 @@ static void led_timer_callback(TimerHandle_t xTimer)
  ************************************/
 void led_init(void)
 {
+  BaseType_t task_create_status;
+
   // Initialize LED GPIO clock
   LED_CLK_ENABLE();
 
@@ -124,4 +184,17 @@ void led_init(void)
   {
     xTimerStart(LED_Timers[i], portMAX_DELAY);
   }
+
+  // Create the LED command queue
+  LED_Command_Queue = xQueueCreate(LED_CMD_QUEUE_SIZE, sizeof(LED_CMD_T));
+
+  // Create the LED command processing task
+  task_create_status = xTaskCreate(led_cmd_task_handler,
+                      "LED command processing task",
+                      200,
+                      NULL,
+                      2,
+                      &LED_Command_Task_Handle);
+
+  configASSERT(task_create_status == pdPASS);
 }
