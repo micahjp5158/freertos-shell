@@ -59,7 +59,7 @@
 #define UART_SHELL_RX_GPIO_AF     GPIO_AF7_USART2
 
 // UART RX buffer
-#define UART_SHELL_CMD_BUF_SIZE  64
+#define UART_SHELL_RX_BUF_SIZE  64
 
 // UART interrupt configuration
 #define UART_SHELL_IRQ_N        USART2_IRQn
@@ -84,30 +84,45 @@
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
 
+// Command registry defines
+#define UART_SHELL_CMD_ID_SIZE        8
+#define UART_SHELL_CMD_HELP_STR_SIZE  32
+#define UART_SHELL_CMD_MAX_NUM_CMDS   8
+
 /************************************
  * PRIVATE TYPEDEFS
  ************************************/
+// Holds a shell command's info
+typedef struct{
+  char cmd_id[UART_SHELL_CMD_ID_SIZE];
+  char cmd_help_str[UART_SHELL_CMD_HELP_STR_SIZE];
+  UART_Shell_Cmd_Callback cmd_callback;
+} UART_Shell_Command_t;
 
 /************************************
  * STATIC VARIABLES
  ************************************/
+// Command registry
+static UART_Shell_Command_t uart_shell_cmds[UART_SHELL_CMD_MAX_NUM_CMDS];
+static uint8_t uart_shell_num_cmds = 0;
+
+// UART RX ring buffer
+static RingBuf_Handle_t Rx_RingBuf_Handle;
+static uint8_t rx_buf[UART_SHELL_RX_BUF_SIZE];
+
+// UART Shell command input_buffer
+static char uart_shell_cmd_input_buf[UART_SHELL_RX_BUF_SIZE];
+
+// UART peripheral handler
+static UART_HandleTypeDef UART_Shell_Handle;
+
+// FreeRTOS task handles
+static TaskHandle_t UART_Shell_Task_Handle;
+static uint32_t     UART_Shell_Task_Notifications;
 
 /************************************
  * GLOBAL VARIABLES
  ************************************/
-// UART RX ring buffer
-RingBuf_Handle_t Rx_RingBuf_Handle;
-uint8_t rx_buf[UART_SHELL_CMD_BUF_SIZE];
-
-// UART Shell command buffer
-char uart_shell_cmd_buf[UART_SHELL_CMD_BUF_SIZE];
-
-// UART peripheral handler
-UART_HandleTypeDef UART_Shell_Handle;
-
-// FreeRTOS task handles
-TaskHandle_t  UART_Shell_Task_Handle;
-uint32_t      UART_Shell_Task_Notifications;
 
 /************************************
  * STATIC FUNCTION PROTOTYPES
@@ -140,20 +155,20 @@ static void uart_shell_task_handler(void *parameters)
       uint8_t idx = 0;
       while (ringbuf_get(&Rx_RingBuf_Handle, &data) == RINGBUF_STATUS_OK)
       {
-        uart_shell_cmd_buf[idx] = data;
+        uart_shell_cmd_input_buf[idx] = data;
         idx++;
       }
 
       // TODO Process commands
 
       // Clear the command buffer for next use
-      memset(uart_shell_cmd_buf, 0, UART_SHELL_CMD_BUF_SIZE * sizeof(char));
+      memset(uart_shell_cmd_input_buf, 0, UART_SHELL_RX_BUF_SIZE * sizeof(char));
     }
 
     // Process RX buffer overflow
     if ((UART_Shell_Task_Notifications & UART_SHELL_SIGNAL_RX_BUFFER_OVERFLOW) == UART_SHELL_SIGNAL_RX_BUFFER_OVERFLOW)
     {
-      printf("\nERROR: RX buffer overflow. Limit command input to %d characters.\n", UART_SHELL_CMD_BUF_SIZE);
+      printf("\nERROR: RX buffer overflow. Limit command input to %d characters.\n", UART_SHELL_RX_BUF_SIZE);
       ringbuf_clear(&Rx_RingBuf_Handle);
     }
 
@@ -171,7 +186,7 @@ void uart_shell_init(void)
   GPIO_InitTypeDef gpio_init = {0};
 
   // Initialize the RX ring buffer
-  ringbuf_init(&Rx_RingBuf_Handle, rx_buf, sizeof(uint8_t), UART_SHELL_CMD_BUF_SIZE);
+  ringbuf_init(&Rx_RingBuf_Handle, rx_buf, sizeof(uint8_t), UART_SHELL_RX_BUF_SIZE);
 
   // Initialize GPIOA clock
   __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -228,6 +243,51 @@ void uart_shell_init(void)
                       &UART_Shell_Task_Handle);
 
   configASSERT(task_create_status == pdPASS);
+}
+
+UART_SHELL_REG_CMD_STATUS_T uart_shell_register_cmd(
+                              char *id,
+                              char *help_str,
+                              UART_Shell_Cmd_Callback callback)
+{
+  // Make sure there is room for a new command
+  if (uart_shell_num_cmds >= UART_SHELL_CMD_MAX_NUM_CMDS)
+  {
+    return UART_SHELL_REG_CMD_ERROR_MAX_CMDS;
+  }
+
+  // Make sure all expected data is provided
+  if (id == NULL || help_str == NULL || callback == NULL)
+  {
+    return UART_SHELL_REG_CMD_ERROR_NULL_PTR;
+  }
+
+  // Make sure there is enough space for all the data
+  if ((strlen(id) >= UART_SHELL_CMD_ID_SIZE) || (strlen(help_str) >= UART_SHELL_CMD_HELP_STR_SIZE))
+  {
+    return UART_SHELL_REG_CMD_ERROR_BUFFER_OVERFLOW;
+  }
+
+  // Make sure the command is not a duplicate
+  for (int i = 0; i < uart_shell_num_cmds; i++)
+  {
+    if (strcmp(uart_shell_cmds[i].cmd_id, id) == 0)
+    {
+      return UART_SHELL_REG_CMD_ERROR_DUPLICATE_CMD;
+    }
+  }
+
+  // Build the command struct
+  UART_Shell_Command_t cmd;
+  strcpy(cmd.cmd_id, id);
+  strcpy(cmd.cmd_help_str, help_str);
+  cmd.cmd_callback = callback;
+
+  // Copy into the command registry and increment number of commands
+  memcpy(&uart_shell_cmds[uart_shell_num_cmds], &cmd, sizeof(UART_Shell_Command_t));
+  uart_shell_num_cmds++;
+
+  return UART_SHELL_REG_CMD_OK;
 }
 
 /************************************
