@@ -127,11 +127,37 @@ static uint32_t     UART_Shell_Task_Notifications;
 /************************************
  * STATIC FUNCTION PROTOTYPES
  ************************************/
+static void uart_shell_process_cmd();
 static void uart_shell_task_handler(void *parameters);
 
 /************************************
  * STATIC FUNCTIONS
  ************************************/
+static void uart_shell_process_cmd()
+{
+  char *cmd_id = strtok(uart_shell_cmd_input_buf, " ");
+
+  // Check for help command
+  if (strcmp(cmd_id, "help") == 0)
+  {
+    printf("TODO: Help screen\n");
+    return;
+  }
+
+  // Check registered commands
+  for (int i = 0; i < uart_shell_num_cmds; i++)
+  {
+    if (strcmp(cmd_id, uart_shell_cmds[i].cmd_id) == 0)
+    {
+      uart_shell_cmds[i].cmd_callback(uart_shell_cmd_input_buf);
+      return;
+    }
+  }
+
+  // Unknown command
+  printf("Unrecognized command \'%s\'. Enter \'help\' for a list of commands.\n", cmd_id);
+}
+
 static void uart_shell_task_handler(void *parameters)
 {
   printf("Shell task started\n");
@@ -152,14 +178,15 @@ static void uart_shell_task_handler(void *parameters)
     {
       // Copy the command from the ringbuffer
       char data;
-      uint8_t idx = 0;
+      uint8_t i = 0;
       while (ringbuf_get(&Rx_RingBuf_Handle, &data) == RINGBUF_STATUS_OK)
       {
-        uart_shell_cmd_input_buf[idx] = data;
-        idx++;
+        uart_shell_cmd_input_buf[i] = data;
+        i++;
       }
 
-      // TODO Process commands
+      // Process command
+      uart_shell_process_cmd();
 
       // Clear the command buffer for next use
       memset(uart_shell_cmd_input_buf, 0, UART_SHELL_RX_BUF_SIZE * sizeof(char));

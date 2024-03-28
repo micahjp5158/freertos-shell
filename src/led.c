@@ -12,6 +12,8 @@
  ************************************/
 #include "led.h"
 
+#include "uart_shell.h"
+
 #include "FreeRTOS.h"
 #include "timers.h"
 #include "queue.h"
@@ -20,6 +22,7 @@
 #include "stm32f4xx_hal.h"
 
 #include <stdint.h>
+#include <stdio.h>
 
 /************************************
  * EXTERN VARIABLES
@@ -69,10 +72,10 @@ typedef enum LED_MODE {
 } LED_MODE_T;
 
 // LED command
-typedef struct LED_CMD {
+typedef struct LED_Command {
   LED_T led;
   LED_MODE_T mode;
-} LED_CMD_T;
+} LED_Command_t;
 
 /************************************
  * STATIC VARIABLES
@@ -96,6 +99,7 @@ static TaskHandle_t LED_Command_Task_Handle;
 /************************************
  * STATIC FUNCTION PROTOTYPES
  ************************************/
+static void led_process_cmd_callback(char *cmd);
 static void led_cmd_task_handler(void *parameters);
 static void led_gpio_init(uint16_t pin);
 static void led_timer_callback(TimerHandle_t xTimer);
@@ -103,9 +107,14 @@ static void led_timer_callback(TimerHandle_t xTimer);
 /************************************
  * STATIC FUNCTIONS
  ************************************/
+static void led_process_cmd_callback(char *cmd)
+{
+  printf("TODO: Process LED commands\n");
+}
+
 static void led_cmd_task_handler(void *parameters)
 {
-  LED_CMD_T cmd;
+  LED_Command_t cmd;
 
   while(1)
   {
@@ -188,7 +197,7 @@ void led_init(void)
   }
 
   // Create the LED command queue
-  LED_Command_Queue = xQueueCreate(LED_CMD_QUEUE_SIZE, sizeof(LED_CMD_T));
+  LED_Command_Queue = xQueueCreate(LED_CMD_QUEUE_SIZE, sizeof(LED_Command_t));
 
   // Create the LED command processing task
   task_create_status = xTaskCreate(led_cmd_task_handler,
@@ -199,4 +208,8 @@ void led_init(void)
                       &LED_Command_Task_Handle);
 
   configASSERT(task_create_status == pdPASS);
+
+  // Register the LED shell command
+  UART_SHELL_REG_CMD_STATUS_T status = uart_shell_register_cmd("led", "Control development board LEDs", led_process_cmd_callback);
+  (void) status;
 }
