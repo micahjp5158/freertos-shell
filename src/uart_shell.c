@@ -164,7 +164,8 @@ static void uart_shell_process_cmd()
 
 static void uart_shell_task_handler(void *parameters)
 {
-  printf("Shell task started\n");
+  printf("Welcome to FreeRTOS-Shell!\n");
+  printf("Enter a command, or type 'help' for a list commands.\n");
 
   while(1){
     // Shell input cursor to prompt for input
