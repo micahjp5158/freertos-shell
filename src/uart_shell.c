@@ -140,7 +140,11 @@ static void uart_shell_process_cmd()
   // Check for help command
   if (strcmp(cmd_id, "help") == 0)
   {
-    printf("TODO: Help screen\n");
+    printf("Available commands:\n");
+    for(int i = 0; i < uart_shell_num_cmds; i++)
+    {
+      printf("%s: %s\n", uart_shell_cmds[i].cmd_id, uart_shell_cmds[i].cmd_help_str);
+    }
     return;
   }
 
