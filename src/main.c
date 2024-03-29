@@ -60,11 +60,11 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
-  /* Initialize LED module */
-  led_init();
-
   /* Initialize UART shell module */
   uart_shell_init();
+
+  /* Initialize LED module */
+  led_init();
 
   /* Start the FreeRTOS scheduler */
   vTaskStartScheduler();

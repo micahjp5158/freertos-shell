@@ -23,6 +23,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 /************************************
  * EXTERN VARIABLES
@@ -47,8 +48,24 @@
 #define LED_BLINK_FAST_MS 250
 #define LED_BLINK_SLOW_MS 1000
 
-// LED Command queue size
+// LED command queue size
 #define LED_CMD_QUEUE_SIZE  8
+
+// LED command strings
+#define LED_CMD_ID_STR    "led"
+#define LED_CMD_INFO_STR  "Control development board LEDs"
+#define LED_CMD_ERROR_STR "led: Error parsing command. Enter 'led help' for usage.\n"
+#define LED_CMD_HELP_STR  "\
+LED Usage: led [color] [mode] [speed]\n\
+  [color]\n\
+    LED color selection\n\
+    Options: green, orange, red, blue\n\
+  [mode]\n\
+    LED mode selection\n\
+    Options: off, on, blink\n\
+  [speed]\n\
+    LED blink speed. Only required when [mode] = blink.\n\
+    Options: fast, slow\n"
 
 /************************************
  * PRIVATE TYPEDEFS
@@ -107,9 +124,74 @@ static void led_timer_callback(TimerHandle_t xTimer);
 /************************************
  * STATIC FUNCTIONS
  ************************************/
-static void led_process_cmd_callback(char *cmd)
+static void led_process_cmd_callback(char *cmd_str)
 {
-  printf("TODO: Process LED commands\n");
+  LED_Command_t cmd;
+  char *token;
+
+  // Grab next token
+  token = strtok(cmd_str, " ");
+
+  // Make sure the token exists
+  if (token == NULL)
+  {
+    printf(LED_CMD_ERROR_STR);
+    return;
+  }
+
+  // Check for help command
+  if (strcmp(token, "help") == 0) {
+    printf(LED_CMD_HELP_STR);
+    return;
+  }
+
+  // Otherwise, check for LED color
+  if (strcmp(token, "green") == 0) {
+    cmd.led = LED_GREEN;
+  } else if (strcmp(token, "orange") == 0) {
+    cmd.led = LED_ORANGE;
+  } else if (strcmp(token, "red") == 0) {
+    cmd.led = LED_RED;
+  } else if (strcmp(token, "blue") == 0) {
+    cmd.led = LED_BLUE;
+  } else {
+    printf(LED_CMD_ERROR_STR);
+    return;
+  }
+
+  // Grab next token
+  token = strtok(NULL, " ");
+
+  // Make sure the token exists
+  if (token == NULL)
+  {
+    printf(LED_CMD_ERROR_STR);
+    return;
+  }
+
+  // Check for LED mode
+  if (strcmp(token, "off") == 0) {
+    cmd.mode = LED_MODE_OFF;
+  } else if (strcmp(token, "on") == 0) {
+    cmd.mode = LED_MODE_ON;
+  } else if (strcmp(token, "blink") == 0) {
+    // Should be one more token for speed
+    token = strtok(NULL, " ");
+    if (strcmp(token, "fast") == 0) {
+      cmd.mode = LED_MODE_BLINK_FAST;
+    } else if (strcmp(token, "slow") == 0) {
+      cmd.mode = LED_MODE_BLINK_SLOW;
+    } else {
+      printf(LED_CMD_ERROR_STR);
+      return;
+    }
+  } else {
+    printf(LED_CMD_ERROR_STR);
+    return;
+  }
+
+  // Put the command into the command queue
+  xQueueSendToBack(LED_Command_Queue, &cmd, portMAX_DELAY);
 }
 
 static void led_cmd_task_handler(void *parameters)

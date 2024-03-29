@@ -149,7 +149,7 @@ static void uart_shell_process_cmd()
   {
     if (strcmp(cmd_id, uart_shell_cmds[i].cmd_id) == 0)
     {
-      uart_shell_cmds[i].cmd_callback(uart_shell_cmd_input_buf);
+      uart_shell_cmds[i].cmd_callback(strtok(NULL, ""));
       return;
     }
   }
@@ -366,6 +366,16 @@ int _isatty(int fd) {
 }
 
 int _write(int fd, char* ptr, int len) {
+  // TODO: Should probably have a better way to handle thread
+  // safety for printing. Maybe let other tasks add messages
+  // to a queue, which the UART shell task then handles printing.
+  // For now though, just limit the UART shell task to be the only
+  // valid printf() caller.
+  if(xTaskGetCurrentTaskHandle() != UART_Shell_Task_Handle)
+  {
+    return -1;
+  }
+
   HAL_StatusTypeDef hstatus;
 
   if (fd == STDOUT_FILENO || fd == STDERR_FILENO) {
