@@ -1,3 +1,4 @@
+
 # freertos-shell
  A FreeRTOS-based application for STM32 microcontrollers that exposes a shell interface over UART to allow users to interact with hardware peripherals through text-based commands in a serial terminal.
 ### Hardware Requirements
@@ -15,7 +16,11 @@
 Debugging configurations will be included for [Visual Studio Code](https://code.visualstudio.com/) using the [Cortex-Debug](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug) extension.
 
 ### Compiling and Running
-From the project's root folder:
+Bring in the project submodules:
+```
+git submodule update --init --recursive
+```
+Then, from the project's root folder:
 -   `make` to compile the project
 -   `make clean` to clean the project
 -   `make flash` to download the project to your development board
